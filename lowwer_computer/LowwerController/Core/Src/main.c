@@ -96,7 +96,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    Motor_OpenLoop(7,2000,3000);
+    Motor_SetSpeed(7,-400,0);
     HAL_Delay(1000);
     /* USER CODE END WHILE */
 
