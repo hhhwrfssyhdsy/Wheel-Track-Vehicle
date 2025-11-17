@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(robot_teleop)
+project(robot_test)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
@@ -10,13 +10,8 @@ find_package(ament_cmake REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
-
-include_directories(
-  /usr/local/include
-)
 find_package(rclcpp REQUIRED)
 find_package(serial REQUIRED)
-find_package(geometry_msgs REQUIRED)
 
 
 if(BUILD_TESTING)
@@ -31,11 +26,9 @@ if(BUILD_TESTING)
   ament_lint_auto_find_test_dependencies()
 endif()
 
-add_executable(keyboard_control src/keyboard_control.cpp)
-ament_target_dependencies(keyboard_control "rclcpp" "serial" "geometry_msgs")
-
-install(TARGETS keyboard_control
+add_executable(serial_test src/serial_test.cpp)
+ament_target_dependencies(serial_test "rclcpp" "serial")
+install(TARGETS serial_test
   DESTINATION lib/${PROJECT_NAME})
-
 
 ament_package()

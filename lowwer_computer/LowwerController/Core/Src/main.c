@@ -56,6 +56,44 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+//TODO:测试ros2串口
+/**
+ * @brief  中断回调函数
+ */
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if (huart->Instance == USART1)
+    {
+        if (rx_char == '\n' || rx_char == '\r' || rx_char == '!')
+        {
+            rx_buffer[rx_index] = '\0';
+            if (rx_index > 0)
+            {
+                Motor_ParseDebug(rx_buffer);
+            }
+            rx_index = 0;
+        }
+        else
+        {
+            rx_buffer[rx_index++] = rx_char;
+            if (rx_index >= sizeof(rx_buffer))
+                rx_index = 0;
+        }
+
+        HAL_UART_Receive_IT(&huart1, &rx_char, 1);
+    }
+    if (huart->Instance == USART2) {
+        rx_buffer[rx_index++] = rx_char;
+
+        if (rx_char == '\n') {
+            rx_buffer[rx_index] = '\0';
+            Process_Upper_Command(rx_buffer);
+            rx_index = 0;
+        }
+
+        HAL_UART_Receive_IT(&huart2, &rx_char, 1);
+    }
+}
 /* USER CODE END 0 */
 
 /**
@@ -88,6 +126,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_USART1_UART_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -96,8 +135,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    Motor_SetSpeed(7,-400,0);
-    HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

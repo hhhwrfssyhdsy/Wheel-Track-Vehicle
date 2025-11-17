@@ -13,6 +13,7 @@
         - `robot_teleop` :遥控操作功能包
         - `robot_sensor_fusion` :传感器数据融合功能包
         - `robot_sensor_drivers` :传感器驱动功能包
+        - `robot_test` :单元测试包
     - `detection` :视觉识别相关代码
 # 待办
 - [ ] 电控

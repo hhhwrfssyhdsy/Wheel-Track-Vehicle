@@ -1,12 +1,8 @@
 #include "motor_ctrl.h"
-
-static uint8_t rx_char;
-static char rx_buffer[64];
-static uint8_t rx_index = 0;
-
 // 最新测速值
 float motor_rps = 0;       // 每秒旋转圈数
 float motor_speed = 0;     // mm/s
+
 
 
 extern UART_HandleTypeDef huart1;
@@ -203,34 +199,6 @@ void Motor_EnableDebug(uint8_t id)
 
 
 /**
- * @brief  中断回调函数
- */
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-    if (huart->Instance == USART1)
-    {
-        if (rx_char == '\n' || rx_char == '\r' || rx_char == '!')
-        {
-            rx_buffer[rx_index] = '\0';
-            if (rx_index > 0)
-            {
-                Motor_ParseDebug(rx_buffer);
-            }
-            rx_index = 0;
-        }
-        else
-        {
-            rx_buffer[rx_index++] = rx_char;
-            if (rx_index >= sizeof(rx_buffer))
-                rx_index = 0;
-        }
-
-        HAL_UART_Receive_IT(&huart1, &rx_char, 1);
-    }
-}
-
-
-/**
  * @brief  初始化接收并开启调试模式
  * @param id 需要读取速度的电机id
  */
@@ -244,4 +212,19 @@ void Motor_SpeedInit(uint8_t id)
     HAL_UART_Receive_IT(&huart1, &rx_char, 1);
 
     printf("Motor Speed Measure Init OK.\r\n");
+}
+
+/**
+ * @brief  接收来自上位机的指令控制电机转速
+ * @param buf 上位机指令流
+ */
+void Process_Upper_Command(char *buf)
+{
+    uint8_t id;
+    float speed;
+
+    if (sscanf(buf, "SPEED %hhu %f", &id, &speed) == 2)
+    {
+        Motor_SetSpeed(id, speed, 0);
+    }
 }
