@@ -228,3 +228,148 @@ void Process_Upper_Command(char *buf)
         Motor_SetSpeed(id, speed, 0);
     }
 }
+
+/**
+ * @brief  计算单个麦轮的速度分量
+ * @param  vx: X方向速度分量 (-1000 ~ +1000)
+ * @param  vy: Y方向速度分量 (-1000 ~ +1000)  
+ * @param  wz: 旋转速度分量 (-1000 ~ +1000)
+ * @param  wheel_angle: 轮子安装角度(弧度)
+ * @retval 轮子PWM值 (0500-2500)
+ */
+static int16_t CalculateWheelSpeed(int16_t vx, int16_t vy, int16_t wz, float wheel_angle)
+{
+    // 麦轮运动学模型：V_wheel = Vx*cosθ + Vy*sinθ + Wz*R
+    // 这里简化处理，R设为1
+    float speed = vx * cosf(wheel_angle) + vy * sinf(wheel_angle) + wz;
+    
+    // 归一化到PWM范围
+    int16_t pwm = (int16_t)((speed / 1000.0f) * (MAX_PWM_VALUE - MIN_PWM_VALUE) / 2 + 
+                           (MAX_PWM_VALUE + MIN_PWM_VALUE) / 2);
+    
+    // 限制在有效范围内
+    if (pwm > MAX_PWM_VALUE) pwm = MAX_PWM_VALUE;
+    if (pwm < MIN_PWM_VALUE) pwm = MIN_PWM_VALUE;
+    
+    return pwm;
+}
+
+/**
+ * @brief  四轮协同运动控制
+ * @param  vx: X方向速度 (-1000 ~ +1000)
+ * @param  vy: Y方向速度 (-1000 ~ +1000)
+ * @param  wz: 旋转速度 (-1000 ~ +1000)
+ * @param  time: 运动时间(ms)，0表示持续运动
+ */
+void OmniWheel_Move(int16_t vx, int16_t vy, int16_t wz, uint16_t time)
+{
+    // 计算四个轮子的速度
+    int16_t wheel_speeds[4];
+    
+    wheel_speeds[0] = CalculateWheelSpeed(vx, vy, wz, WHEEL_ANGLE_FRONT_RIGHT); // 右前
+    wheel_speeds[1] = CalculateWheelSpeed(vx, vy, wz, WHEEL_ANGLE_FRONT_LEFT);  // 左前  
+    wheel_speeds[2] = CalculateWheelSpeed(vx, vy, wz, WHEEL_ANGLE_REAR_LEFT);   // 左后
+    wheel_speeds[3] = CalculateWheelSpeed(vx, vy, wz, WHEEL_ANGLE_REAR_RIGHT);  // 右后
+    
+    // 发送控制命令到四个电机
+    Motor_OpenLoop(WHEEL_FRONT_RIGHT, wheel_speeds[0], time);
+    Motor_OpenLoop(WHEEL_FRONT_LEFT,  wheel_speeds[1], time);
+    Motor_OpenLoop(WHEEL_REAR_LEFT,   wheel_speeds[2], time);
+    Motor_OpenLoop(WHEEL_REAR_RIGHT,  wheel_speeds[3], time);
+}
+
+/**
+ * @brief  前进
+ * @param  speed: 速度值 (0-1000)
+ * @param  time: 运动时间(ms)
+ */
+void OmniWheel_MoveForward(int16_t speed, uint16_t time)
+{
+    OmniWheel_Move(0, speed, 0, time);
+}
+
+/**
+ * @brief  后退
+ * @param  speed: 速度值 (0-1000)  
+ * @param  time: 运动时间(ms)
+ */
+void OmniWheel_MoveBackward(int16_t speed, uint16_t time)
+{
+    OmniWheel_Move(0, -speed, 0, time);
+}
+
+/**
+ * @brief  向右平移
+ * @param  speed: 速度值 (0-1000)
+ * @param  time: 运动时间(ms)
+ */
+void OmniWheel_MoveRight(int16_t speed, uint16_t time)
+{
+    OmniWheel_Move(speed, 0, 0, time);
+}
+
+/**
+ * @brief  向左平移  
+ * @param  speed: 速度值 (0-1000)
+ * @param  time: 运动时间(ms)
+ */
+void OmniWheel_MoveLeft(int16_t speed, uint16_t time)
+{
+    OmniWheel_Move(-speed, 0, 0, time);
+}
+
+/**
+ * @brief  顺时针旋转
+ * @param  speed: 速度值 (0-1000)
+ * @param  time: 运动时间(ms)
+ */
+void OmniWheel_RotateCW(int16_t speed, uint16_t time)
+{
+    OmniWheel_Move(0, 0, speed, time);
+}
+
+/**
+ * @brief  逆时针旋转
+ * @param  speed: 速度值 (0-1000)  
+ * @param  time: 运动时间(ms)
+ */
+void OmniWheel_RotateCCW(int16_t speed, uint16_t time)
+{
+    OmniWheel_Move(0, 0, -speed, time);
+}
+
+/**
+ * @brief  斜向移动（组合方向）
+ * @param  angle: 移动角度 (0-360度，0度为正前方)
+ * @param  speed: 速度值 (0-1000)
+ * @param  time: 运动时间(ms)
+ */
+void OmniWheel_MoveAtAngle(float angle, int16_t speed, uint16_t time)
+{
+    float rad = angle * PI / 180.0f;
+    int16_t vx = (int16_t)(speed * sinf(rad));
+    int16_t vy = (int16_t)(speed * cosf(rad));
+    
+    OmniWheel_Move(vx, vy, 0, time);
+}
+
+/**
+ * @brief  停止所有电机
+ * @param  time: 停止时间(ms)，0表示立即停止
+ */
+void OmniWheel_Stop(uint16_t time)
+{
+    // 发送停止命令到所有电机（PWM=1500为中位）
+    Motor_OpenLoop(WHEEL_FRONT_RIGHT, 1500, time);
+    Motor_OpenLoop(WHEEL_FRONT_LEFT,  1500, time);  
+    Motor_OpenLoop(WHEEL_REAR_LEFT,   1500, time);
+    Motor_OpenLoop(WHEEL_REAR_RIGHT,  1500, time);
+}
+
+/**
+ * @brief  急停（立即停止）
+ */
+void OmniWheel_EmergencyStop(void)
+{
+    OmniWheel_Stop(0);
+}
